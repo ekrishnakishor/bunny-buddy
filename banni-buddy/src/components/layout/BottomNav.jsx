@@ -20,11 +20,11 @@ const BottomNav = () => {
         <span className={styles.label}>Help</span>
       </NavLink>
       <NavLink 
-        to="/kannada" 
+        to="/guru" 
         className={({ isActive }) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}
       >
         <MessageCircle className={styles.icon} strokeWidth={2.5} />
-        <span className={styles.label}>Kannada</span>
+        <span className={styles.label}>Guru</span>
       </NavLink>
       <NavLink 
         to="/profile" 

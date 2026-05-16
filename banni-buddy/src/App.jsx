@@ -8,6 +8,7 @@ import Profile from './routes/Profile.jsx';
 import Help from './routes/Help.jsx';
 import CreateRequest from './routes/CreateRequest.jsx';
 import ChatRoom from './routes/ChatRoom.jsx';
+import Guru from './routes/Guru.jsx';
 
 const App = () => {
   const { setSession, isInitialized } = useAuthStore();
@@ -33,6 +34,7 @@ const App = () => {
         <Route path="/requests" element={<Help />} />
         <Route path="/create-request" element={<CreateRequest />} />
         <Route path="/chat/:id" element={<ChatRoom />} />
+        <Route path="/guru" element={<Guru />} />
         <Route path="/profile" element={<Profile />} />
       </Route>
     </Routes>
