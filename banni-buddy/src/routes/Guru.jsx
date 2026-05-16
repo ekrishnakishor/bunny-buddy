@@ -1,24 +1,58 @@
-import { useState, useRef } from 'react';
-import { Mic, MicOff, Languages, Info, Volume2, ArrowRightLeft } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Mic, MicOff, Languages, Info, ArrowRightLeft } from 'lucide-react';
 import styles from './Guru.module.css';
 
-// A starter dictionary for Bengaluru survival phrases (Kanglish)
+// HYBRID DICTIONARY: English to Kanglish (Readable Kannada)
 const KANGLISH_DICTIONARY = {
-  "how much": "Yestu?",
+  // Greetings & Basics
+  "hello": "Namaskara",
+  "hey": "Namaskara",
+  "hi": "Namaskara",
+  "how are you": "Hegiddira?",
+  "how are you?": "Hegiddira?",
+  "i am fine": "Naanu chennagiddini",
+  "what is your name": "Nimma hesaru enu?",
+  "what is your name?": "Nimma hesaru enu?",
+  "my name is": "Nanna hesaru...",
+  "yes": "Houdhu",
+  "no": "Illa",
+  "okay": "Sari",
+  "thank you": "Dhanyavadagalu",
+  "sorry": "Kshamisi",
+  "very good": "Sakkath",
+  "super": "Sakkath / Bomp",
+
+  // Navigation & Travel
   "where is the bus stop": "Bus stop elli ide?",
   "go straight": "Nera hogi",
   "take left": "Left tegolli",
   "take right": "Right tegolli",
-  "i don't know kannada": "Nanage Kannada gottilla",
-  "do you know english": "Nimage English gottidya?",
-  "come here": "Illi banni",
-  "what is your name": "Nimma hesaru enu?",
-  "had food": "Oota aaytha?",
   "stop here": "Illi nillisi",
+  "come here": "Illi banni",
+  "how much": "Yestu?",
+  "how much?": "Yestu?",
+  "what is the price": "Bele yestu?",
+  "too much": "Jasti aaytu",
+  "reduce price": "Kammi madi",
+
+  // Food & Needs
+  "had food": "Oota aaytha?",
+  "had food?": "Oota aaytha?",
+  "i want water": "Nanage neeru beku",
+  "i want food": "Nanage oota beku",
+  "is it spicy": "Khara idya?",
+  "bill please": "Bill kodi",
+
+  // People
   "brother": "Anna",
   "sister": "Akka",
-  "very good": "Sakkath",
-  "how are you": "Hegiddira?"
+  "uncle": "Uncle / Maava",
+  "friend": "Geleya / Gelathi",
+
+  // Language survival
+  "i don't know kannada": "Nanage Kannada gottilla",
+  "do you know english": "Nimage English gottidya?",
+  "speak slowly": "Nidhanavagi mathadi"
 };
 
 const Guru = () => {
@@ -27,41 +61,89 @@ const Guru = () => {
   const [isListening, setIsListening] = useState(false);
   const [error, setError] = useState('');
   const [feedback, setFeedback] = useState('');
+  
+  // Track translation direction (EN_TO_KN or KN_TO_EN)
+  const [direction, setDirection] = useState('EN_TO_KN'); 
 
   const recognitionRef = useRef(null);
+  const isEnglishToKannada = direction === 'EN_TO_KN';
 
-  // Fallback translation logic
-  const handleTranslate = (textToTranslate) => {
-    const lowerText = textToTranslate.toLowerCase().trim();
-    
-    // Check if we have an exact match in our dictionary
-    let result = KANGLISH_DICTIONARY[lowerText];
+  // Live typing/translation effect
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const text = inputText.trim().toLowerCase();
+      
+      if (text.length === 0) {
+        setTranslatedText('');
+        setFeedback('');
+        return;
+      }
 
-    // If no exact match, try to find partial matches
-    if (!result) {
-      const match = Object.keys(KANGLISH_DICTIONARY).find(key => lowerText.includes(key));
-      if (match) result = `${KANGLISH_DICTIONARY[match]} (Partial match)`;
+      if (isEnglishToKannada) {
+        // Mode 1: English to Kanglish (Local Dictionary)
+        handleKanglishTranslation(text);
+      } else {
+        // Mode 2: Kannada to English (Live API)
+        translateWithAPI(inputText, 'kn|en');
+      }
+    }, 600); // 600ms debounce
+
+    return () => clearTimeout(timer);
+  }, [inputText, direction, isEnglishToKannada]);
+
+
+  // Logic for Kanglish
+  const handleKanglishTranslation = (text) => {
+    // 1. Check for exact match
+    if (KANGLISH_DICTIONARY[text]) {
+      setTranslatedText(KANGLISH_DICTIONARY[text]);
+      setFeedback('');
+      return;
     }
 
-    if (result) {
-      setTranslatedText(result);
-      setFeedback('');
-    } else {
-      setTranslatedText('');
-      setFeedback("Guru is still learning! Try simple phrases like 'how much', 'go straight', or 'had food'.");
+    // 2. Check for partial match if exact fails
+    const partialMatch = Object.keys(KANGLISH_DICTIONARY).find(key => text.includes(key));
+    if (partialMatch) {
+      setTranslatedText(KANGLISH_DICTIONARY[partialMatch]);
+      setFeedback(`Found close match for: "${partialMatch}"`);
+      return;
+    }
+
+    // 3. Not found
+    setTranslatedText('');
+    setFeedback("Guru is still learning this phrase! Try basics like 'how much', 'go straight', or 'had food'.");
+  };
+
+
+  // Logic for API (Used only when speaking Kannada to get English meaning)
+  const translateWithAPI = async (text, langpair) => {
+    try {
+      setFeedback('Translating meaning to English...');
+      const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${langpair}`);
+      const data = await res.json();
+      
+      if (data && data.responseData) {
+        setTranslatedText(data.responseData.translatedText);
+        setFeedback('');
+      }
+    } catch (err) {
+      setFeedback('Network error. Trying to reconnect...');
     }
   };
+
 
   const handleInputChange = (e) => {
-    const text = e.target.value;
-    setInputText(text);
-    if (text.length === 0) {
-      setTranslatedText('');
-      setFeedback('');
-    } else {
-      handleTranslate(text);
-    }
+    setInputText(e.target.value);
   };
+
+
+  const toggleDirection = () => {
+    setDirection(prev => prev === 'EN_TO_KN' ? 'KN_TO_EN' : 'EN_TO_KN');
+    setInputText('');
+    setTranslatedText('');
+    setFeedback('');
+  };
+
 
   const toggleListening = () => {
     if (isListening) {
@@ -73,28 +155,30 @@ const Guru = () => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     
     if (!SpeechRecognition) {
-      setError("Your browser doesn't support the microphone for this app. Try Chrome!");
+      setError("Your browser doesn't support the microphone. Try Chrome!");
       return;
     }
 
     const recognition = new SpeechRecognition();
     recognitionRef.current = recognition;
-    recognition.lang = 'en-IN'; // Indian English
-    recognition.continuous = false;
-    recognition.interimResults = false;
+    
+    // Set mic to listen for English OR Kannada based on the toggle!
+    recognition.lang = isEnglishToKannada ? 'en-IN' : 'kn-IN'; 
+    recognition.continuous = true;
+    recognition.interimResults = true; 
 
     recognition.onstart = () => {
       setIsListening(true);
       setError('');
-      setInputText('');
-      setTranslatedText('Listening...');
-      setFeedback('');
+      setFeedback('Listening... speak now.');
     };
 
     recognition.onresult = (event) => {
-      const transcript = event.results[0][0].transcript;
-      setInputText(transcript);
-      handleTranslate(transcript);
+      let currentTranscript = '';
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        currentTranscript += event.results[i][0].transcript;
+      }
+      setInputText(currentTranscript);
     };
 
     recognition.onerror = (event) => {
@@ -112,9 +196,8 @@ const Guru = () => {
   return (
     <div className={styles.page}>
       
-      {/* Top Disclaimer Banner */}
       <div className={styles.banner}>
-        <Info size={16} />
+        <Info size={16} style={{ flexShrink: 0 }} />
         <span>Regional languages (Malayalam, Tamil, Telugu, Hindi) will be added shortly.</span>
       </div>
 
@@ -123,17 +206,19 @@ const Guru = () => {
           <Languages size={28} color="var(--color-primary)" />
           <h1 className={styles.title}>Guru</h1>
         </div>
-        <p className={styles.subtitle}>Your local Kannada translation buddy</p>
+        <p className={styles.subtitle}>Your local translation buddy</p>
       </header>
 
       <div className={styles.translatorContainer}>
         
-        {/* Input Section */}
+        {/* INPUT SECTION */}
         <div className={styles.inputSection}>
-          <div className={styles.sectionLabel}>English</div>
+          <div className={styles.sectionLabel}>
+            {isEnglishToKannada ? 'English' : 'Kannada (Speak into Mic)'}
+          </div>
           <textarea
             className={styles.textArea}
-            placeholder="Type in English (e.g., 'how much' or 'take left')..."
+            placeholder={isEnglishToKannada ? "Type or speak in English (e.g. 'how much')..." : "Tap the mic and speak Kannada..."}
             value={inputText}
             onChange={handleInputChange}
           />
@@ -150,13 +235,18 @@ const Guru = () => {
           {error && <p className={styles.errorText}>{error}</p>}
         </div>
 
+        {/* SWAP BUTTON */}
         <div className={styles.divider}>
-          <ArrowRightLeft size={20} color="var(--color-text-muted)" />
+          <button className={styles.swapButton} onClick={toggleDirection} title="Swap Languages">
+            <ArrowRightLeft size={18} color="var(--color-primary)" />
+          </button>
         </div>
 
-        {/* Output Section */}
+        {/* OUTPUT SECTION */}
         <div className={styles.outputSection}>
-          <div className={styles.sectionLabel}>Kannada (How to say it)</div>
+          <div className={styles.sectionLabel}>
+            {isEnglishToKannada ? 'Kanglish (How to say it)' : 'English Translation'}
+          </div>
           
           <div className={styles.resultBox}>
             {translatedText ? (
@@ -171,17 +261,19 @@ const Guru = () => {
 
       </div>
 
-      {/* Quick Suggestions */}
+      {/* QUICK SUGGESTIONS */}
       <div className={styles.suggestionsContainer}>
         <h3 className={styles.suggestionsTitle}>Try asking Guru:</h3>
         <div className={styles.chips}>
-          {["How much", "Take left", "Had food", "Brother"].map((phrase) => (
+          {(isEnglishToKannada 
+            ? ["How much", "Where is the bus stop", "Had food", "Brother"] 
+            : ["ಎಷ್ಟು", "ಎಲ್ಲಿ", "ಊಟ ಆಯ್ತಾ"]
+          ).map((phrase) => (
             <button 
               key={phrase} 
               className={styles.chip}
               onClick={() => {
                 setInputText(phrase);
-                handleTranslate(phrase);
               }}
             >
               {phrase}
