@@ -11,7 +11,6 @@ export const useNearbyPlaces = (lat, lng, category) => {
     }
 
     const fetchPlaces = async () => {
-      setLoading(false);
       setLoading(true);
       try {
         const osmTags = {
@@ -25,11 +24,22 @@ export const useNearbyPlaces = (lat, lng, category) => {
         const tag = osmTags[category];
         if (!tag) return;
 
-        // Using nwr (node, way, relation) and out center allows parsing actual buildings/areas
         const query = `[out:json];nwr(around:3000,${lat},${lng})[${tag}];out center 15;`;
-        const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
+        
+        // THE FIX: Using a POST request with headers bypasses the CORS and 406 errors
+        const response = await fetch('https://overpass-api.de/api/interpreter', {
+          method: 'POST',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          body: `data=${encodeURIComponent(query)}`
+        });
 
-        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
         const data = await response.json();
 
         if (!data || !data.elements) {
@@ -40,7 +50,6 @@ export const useNearbyPlaces = (lat, lng, category) => {
         const formattedPlaces = data.elements
           .filter(el => el.tags && el.tags.name)
           .map(el => {
-            // Fallback to center tracking for building polygon objects
             const placeLat = el.lat || (el.center ? el.center.lat : null);
             const placeLng = el.lon || (el.center ? el.center.lng : null);
 
