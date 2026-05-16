@@ -1,15 +1,30 @@
+import { useNavigate } from "react-router-dom";
 import { useRequests } from "../features/help-requests/hooks/useHelpRequests.js";
+import { useStartConversation } from "../features/chat/hooks/useConversations.js";
 import { useLocalityStore } from "../store/useLocalityStore.js";
 import { useAuthStore } from "../store/useAuthStore.js";
 import { Plus, MapPin } from "lucide-react";
 import styles from "./Help.module.css";
-import { useNavigate } from "react-router-dom";
 
 const Help = () => {
-    const navigate = useNavigate();
+  const navigate = useNavigate();
   const { localityName } = useLocalityStore();
   const { user } = useAuthStore();
   const { data: requests, isLoading } = useRequests();
+
+  // Initialize our new chat mutation
+  const { mutateAsync: startChat, isPending: isStartingChat } =
+    useStartConversation();
+
+  // Function to handle clicking Reply
+  const handleReply = async (requestId) => {
+    try {
+      const conversationId = await startChat(requestId);
+      navigate(`/chat/${conversationId}`);
+    } catch (error) {
+      alert("Please sign in from the Profile tab to reply to requests.");
+    }
+  };
 
   if (!localityName) {
     return (
@@ -70,7 +85,16 @@ const Help = () => {
                   </div>
                   <span>{req.profiles.username}</span>
                 </div>
-                <button className={styles.replyButton}>Reply</button>
+                {/* Only show Reply if logged in AND they didn't create the request themselves */}
+                {user?.id !== req.created_by && (
+                  <button
+                    className={styles.replyButton}
+                    onClick={() => handleReply(req.id)}
+                    disabled={isStartingChat}
+                  >
+                    {isStartingChat ? "Opening..." : "Reply"}
+                  </button>
+                )}
               </div>
             </div>
           ))}
