@@ -46,6 +46,7 @@ export const useChatMessages = (conversationId) => {
 // Send a new message
 export const useSendMessage = () => {
   const { user } = useAuthStore();
+  const queryClient = useQueryClient(); // Added QueryClient here
 
   return useMutation({
     mutationFn: async ({ conversationId, content }) => {
@@ -53,6 +54,10 @@ export const useSendMessage = () => {
         .from('messages')
         .insert([{ conversation_id: conversationId, sender_id: user.id, content }]);
       if (error) throw new Error(error.message);
+    },
+    // Added onSuccess to instantly refresh the local cache after sending
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['messages', variables.conversationId] });
     }
   });
 };
